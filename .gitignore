@@ -1,0 +1,18 @@
+# Gradle / build outputs
+.gradle/
+build/
+
+# Scratch / probe files
+.tmp/
+
+# Compiled artifacts anywhere they may appear
+*.class
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Transfer artifacts (bundles/zip for GitHub upload)
+*.bundle
+bound.zip

@@ -1,43 +1,24 @@
 package staticmod.core;
 
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
 
 /**
- * Обёртка SavedDataType для StaticSaveData (per-мир, data/staticmod_state.dat).
- * Runtime-объект кэшируется на сервер; save() сбрасывает состояние в SavedData.
+ * Доступ к состоянию STATIC per-мир через единый SavedData (StaticSaveData.TYPE).
+ * Кэширует runtime-объект на сервер; save() сбрасывает состояние в обёртку.
  */
 public final class StaticData {
+    private StaticData() {}
 
-    public static SavedDataType<StaticSaveData.State> TYPE = null;
-    private static final java.util.WeakHashMap<MinecraftServer, Holder> CACHE = new java.util.WeakHashMap<>();
-
-    private static void init() {
-        if (TYPE == null) {
-            TYPE = new SavedDataType<>(
-                    "staticmod_state",
-                    () -> new StaticSaveData().toState(),
-                    StaticSaveData.State.CODEC,
-                    NbtOps.INSTANCE,
-                    Tag.TYPE_COMPOUND
-            );
-        }
-    }
-
-    /** хранилище + runtime-данные одного мира */
     private static final class Holder {
         final StaticSaveData data = new StaticSaveData();
-        final SavedData<StaticSaveData.State> saved;
-
+        final StaticSaveData.Wrapper saved;
         Holder(MinecraftServer server) {
-            init();
-            saved = server.getDataStorage().computeIfAbsent(TYPE, data::toState);
-            data.load(saved.get());
+            saved = server.getDataStorage().computeIfAbsent(StaticSaveData.TYPE);
+            data.load(saved.state);
         }
     }
+
+    private static final java.util.WeakHashMap<MinecraftServer, Holder> CACHE = new java.util.WeakHashMap<>();
 
     public static StaticSaveData get(MinecraftServer server) {
         return CACHE.computeIfAbsent(server, Holder::new).data;
@@ -47,6 +28,7 @@ public final class StaticData {
     public static void save(MinecraftServer server) {
         Holder h = CACHE.get(server);
         if (h == null) return;
-        h.saved.set(h.data.toState()); // VanillaSavedData#set обновляет значение и вызывает setDirty()
+        h.saved.state = h.data.toState();
+        h.saved.setDirty(true);
     }
 }
